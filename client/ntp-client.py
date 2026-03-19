@@ -233,10 +233,11 @@ class NTPClient:
         if self.offset_resultado < len(self.resultado_bytes):
             byte2 = self.resultado_bytes[self.offset_resultado]
             self.offset_resultado += 1
-            mas = 1
         else:
             byte2 = 0
-            mas = 0
+
+        # mas=1 si aún quedan bytes por enviar, mas=0 si este es el último fragmento
+        mas = 1 if self.offset_resultado < len(self.resultado_bytes) else 0
 
         datos_frag = (byte1 << 8) | byte2
         # num_frag basado en la posición (0-indexed por par de bytes)
