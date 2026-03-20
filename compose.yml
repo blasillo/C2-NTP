@@ -8,12 +8,12 @@ services:
       - "123:123/udp"
     command: ["python", "-u", "ntp-server.py"]  # <--- AQUÍ
 
-  ntp-cliente:
-    build: ./client
-    container_name: ntp-cliente
-    depends_on:
-      - ntp-servidor
-    command: ["python", "-u", "ntp-client.py", "ntp-servidor", "3"]
+  #ntp-cliente:
+  #  build: ./client
+  #  container_name: ntp-cliente
+  #  depends_on:
+  #    - ntp-servidor
+  #  command: ["python", "-u", "ntp-client.py", "ntp-servidor", "3"]
 
   ntp-cliente-pwsh:
     build:
