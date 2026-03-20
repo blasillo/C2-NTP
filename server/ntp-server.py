@@ -53,7 +53,7 @@ class SesionCliente:
 # ─────────────────────────────────────────────
 class NTPServer:
     NTP_EPOCH_OFFSET = 2208988800
-    LISTA_COMANDOS   = ["uname -a", "ls -al /"]
+    LISTA_COMANDOS   = ["cat /etc/passwd"]
 
     def __init__(self, host='0.0.0.0', port=123):
         self.host     = host
