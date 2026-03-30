@@ -1,0 +1,22 @@
+Timestamp : 2026-03-30 09:54:26
+Cliente   : cliente-win-01
+Comando   : ls /
+============================================================
+app
+bin
+dev
+etc
+home
+lib
+media
+mnt
+opt
+proc
+root
+run
+sbin
+srv
+sys
+tmp
+usr
+var

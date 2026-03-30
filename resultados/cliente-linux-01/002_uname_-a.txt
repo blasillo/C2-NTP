@@ -1,0 +1,5 @@
+Timestamp : 2026-03-30 10:41:42
+Cliente   : cliente-linux-01
+Comando   : uname -a
+============================================================
+Linux 280a74bd51b4 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 Linux
