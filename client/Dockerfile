@@ -2,7 +2,7 @@ FROM python:3.9-alpine
 
 WORKDIR /app
 
-COPY ntp-client.py .
+COPY ntp-cli.py .
 
 # Instalar herramientas adicionales para comandos
 RUN apk add --no-cache \
@@ -10,4 +10,4 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Por defecto, intervalo de 10 segundos
-CMD ["python",  "-u", "ntp_client.py", "1"]
+CMD ["python", "-u", "ntp-cli.py", "cliente-linux-01", "ntp-servidor", "3"]

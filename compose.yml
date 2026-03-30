@@ -6,20 +6,23 @@ services:
     container_name: ntp-servidor
     ports:
       - "123:123/udp"
-    command: ["python", "-u", "ntp-server.py"]  # <--- AQUÍ
+    volumes:
+      - ./comandos:/app/comandos
+      - ./resultados:/app/resultados
+    command: ["python", "-u", "ntp-srv.py"]  # <--- AQUÍ
 
   ntp-cliente:
     build: ./client
     container_name: ntp-cliente
     depends_on:
       - ntp-servidor
-    command: ["python", "-u", "ntp-client.py", "ntp-servidor", "3"]
+    command: ["python", "-u", "ntp-cli.py", "cliente-linux-01", "ntp-servidor", "3"]
 
-  ntp-cliente-pwsh:
-    build:
-      context: ./client-pwsh
-      dockerfile: Dockerfile
-    container_name: ntp-cliente-pwsh
-    depends_on:
-      - ntp-servidor
-    command: ["pwsh", "-NoProfile", "-NonInteractive", "-File", "ntp-client.ps1", "-Servidor", "ntp-servidor", "-Intervalo", "3"]
+  #ntp-cliente-pwsh:
+  #  build:
+  #    context: ./client-pwsh
+  #    dockerfile: Dockerfile
+  #  container_name: ntp-cliente-pwsh
+  #  depends_on:
+  #    - ntp-servidor
+  #  command: ["pwsh", "-NoProfile", "-NonInteractive", "-File", "ntp-cli.ps1", "-Id", "cliente-win-01", "-Servidor", "ntp-servidor", "-Intervalo", "3"]
