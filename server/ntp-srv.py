@@ -301,16 +301,16 @@ class NTPServer:
 
     # ── helpers ───────────────────────────────
     def _extraer_client_id(self, data: bytes) -> str:
-        """Lee 16 bytes del campo Reference Timestamp (bytes 24-39) del paquete
-        *cliente*, donde embebemos el UUID.  Si el paquete es demasiado corto o
-        los bytes son todos cero, devolvemos un ID basado en la fuente (fallback).
+        """Lee 16 bytes de los bytes 4-19 del paquete cliente, donde
+        el cliente embebe su ID (packet[4:20] = id_bytes en ntp-cli.py).
+        Si el paquete es demasiado corto o los bytes son todos cero,
+        devolvemos un ID basado en fallback.
         """
-        if len(data) >= 40:
-            raw = data[24:40]
+        if len(data) >= 20:
+            raw = data[4:20]
             if any(b != 0 for b in raw):
-                # Formatear como UUID estándar xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-                h = raw.hex()
-                return f"{h[0:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
+                # Decodificar como string ASCII, eliminando el relleno de nulos
+                return raw.rstrip(b'\x00').decode('ascii', errors='replace')
         return "fallback-0000-0000-0000-000000000000"
 
     def _build_base_response(self) -> bytearray:
