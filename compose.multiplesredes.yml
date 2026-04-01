@@ -1,0 +1,90 @@
+networks:
+  red-servidor:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+  red-clientes:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+
+services:
+  ntp-servidor:
+    build: ./server
+    container_name: ntp-servidor
+    cap_add:
+      - NET_ADMIN
+    networks:
+      red-servidor:
+        ipv4_address: 172.20.0.10
+    volumes:
+      - ./comandos:/app/comandos
+      - ./resultados:/app/resultados
+    command: >
+      sh -c "
+        ip route add 172.21.0.0/24 via 172.20.0.2 &&
+        python -u ntp-srv.py
+      "
+
+  router:
+    image: alpine:latest
+    container_name: ntp-router
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      red-servidor:
+        ipv4_address: 172.20.0.2
+      red-clientes:
+        ipv4_address: 172.21.0.2
+    command: >
+      sh -c "
+        apk add --no-cache tcpdump iptables &&
+        echo 1 > /proc/sys/net/ipv4/ip_forward &&
+        iptables -A FORWARD -p udp --dport 123 -j ACCEPT &&
+        iptables -A FORWARD -p udp --sport 123 -j ACCEPT &&
+        iptables -A FORWARD -j DROP &&
+        echo '✅ Router listo — solo trafico NTP (UDP 123) permitido' &&
+        tcpdump -i any -n udp port 123 -v
+      "
+
+  ntp-cliente:
+    build: ./client
+    container_name: ntp-cliente
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - router
+      - ntp-servidor
+    networks:
+      red-clientes:
+        ipv4_address: 172.21.0.11
+    dns_search: .
+    command: >
+      sh -c "
+        ip route add 172.20.0.0/24 via 172.21.0.2 &&
+        /usr/sbin/sshd -D &
+        python -u ntp-cli.py cliente-linux-01 172.20.0.10 3
+      "
+
+  ntp-cliente-pwsh:
+    build:
+      context: ./client-pwsh
+      dockerfile: Dockerfile
+    container_name: ntp-cliente-pwsh
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - router
+      - ntp-servidor
+    networks:
+      red-clientes:
+        ipv4_address: 172.21.0.12
+    command: >
+      sh -c "
+        ip route add 172.20.0.0/24 via 172.21.0.2 &&
+        pwsh -NoProfile -NonInteractive -File ntp-cli.ps1 -Id cliente-win-01 -Servidor 172.20.0.10 -Intervalo 3
+      "

